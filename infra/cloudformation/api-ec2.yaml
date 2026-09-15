@@ -1,0 +1,100 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: EC2 instance running the Portal API in Docker.
+
+Parameters:
+  AmiId:
+    Type: AWS::EC2::Image::Id
+    Description: Amazon Linux AMI compatible with the selected region.
+  InstanceType:
+    Type: String
+    Default: t3.micro
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+  SecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+  ApiImageUri:
+    Type: String
+    Description: URI of the API container image in ECR or another reachable registry.
+  EcrRegistryUri:
+    Type: String
+    Default: ''
+    Description: Optional ECR registry hostname, for example 123456789012.dkr.ecr.eu-west-1.amazonaws.com.
+  DatabaseUrlParameter:
+    Type: String
+    Default: /portal/DATABASE_URL
+    Description: SSM parameter name containing the PostgreSQL connection string.
+  JwtSecretParameter:
+    Type: String
+    Default: /portal/JWT_SECRET
+    Description: SSM parameter name containing the JWT signing secret.
+  ApiPort:
+    Type: Number
+    Default: 4000
+
+Resources:
+  ApiRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ec2.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: ReadApiParameters
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameter
+                  - ssm:GetParameters
+                Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter${DatabaseUrlParameter}
+              - Effect: Allow
+                Action: ssm:GetParameter
+                Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter${JwtSecretParameter}
+
+  ApiInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles: [!Ref ApiRole]
+
+  ApiInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AmiId
+      InstanceType: !Ref InstanceType
+      SubnetId: !Ref SubnetId
+      SecurityGroupIds: [!Ref SecurityGroupId]
+      IamInstanceProfile: !Ref ApiInstanceProfile
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-api
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -euo pipefail
+          dnf install -y docker awscli
+          systemctl enable --now docker
+          if [ -n '${EcrRegistryUri}' ]; then aws ecr get-login-password --region ${AWS::Region} | docker login --username AWS --password-stdin '${EcrRegistryUri}'; fi
+          DATABASE_URL=$(aws ssm get-parameter --name '${DatabaseUrlParameter}' --with-decryption --query Parameter.Value --output text --region ${AWS::Region})
+          JWT_SECRET=$(aws ssm get-parameter --name '${JwtSecretParameter}' --with-decryption --query Parameter.Value --output text --region ${AWS::Region})
+          docker pull '${ApiImageUri}'
+          docker rm -f portal-api || true
+          docker run -d --restart unless-stopped --name portal-api \
+            -p ${ApiPort}:${ApiPort} \
+            -e DATABASE_URL="$DATABASE_URL" \
+            -e JWT_SECRET="$JWT_SECRET" \
+            -e PORT=${ApiPort} \
+            '${ApiImageUri}'
+
+Outputs:
+  InstanceId:
+    Value: !Ref ApiInstance
+  PrivateIp:
+    Value: !GetAtt ApiInstance.PrivateIp
+  PublicDnsName:
+    Value: !GetAtt ApiInstance.PublicDnsName
+  ApiUrl:
+    Value: !Sub http://${ApiInstance.PublicDnsName}:${ApiPort}

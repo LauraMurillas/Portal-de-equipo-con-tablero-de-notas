@@ -1,0 +1,9 @@
+{
+  "name": "@portal/web",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": { "dev": "vite", "build": "tsc -b && vite build" },
+  "dependencies": { "@dnd-kit/core": "^6.1.0", "@dnd-kit/sortable": "^8.0.0", "@portal/shared": "*", "@vitejs/plugin-react": "^4.3.4", "vite": "^6.0.7", "typescript": "^5.7.2", "react": "^19.0.0", "react-dom": "^19.0.0", "lucide-react": "^0.468.0" },
+  "devDependencies": { "@types/react": "^19.0.2", "@types/react-dom": "^19.0.2" }
+}

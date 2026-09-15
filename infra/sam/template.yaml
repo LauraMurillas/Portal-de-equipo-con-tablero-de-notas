@@ -1,0 +1,20 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Parameters:
+  DatabaseUrl:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /portal/DATABASE_URL
+Resources:
+  MetricsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: dist/handler.handler
+      Runtime: nodejs20.x
+      CodeUri: ../../lambda/metrics
+      Environment:
+        Variables:
+          DATABASE_URL: !Ref DatabaseUrl
+      Events:
+        MetricsApi:
+          Type: Api
+          Properties: { Path: /metrics, Method: get }

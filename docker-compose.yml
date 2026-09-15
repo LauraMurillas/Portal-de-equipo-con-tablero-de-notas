@@ -1,0 +1,23 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: portal
+      POSTGRES_USER: portal
+      POSTGRES_PASSWORD: portal
+    ports: ["5432:5432"]
+    volumes: ["postgres-data:/var/lib/postgresql/data"]
+  api:
+    build: { context: ., dockerfile: infra/docker/api.Dockerfile }
+    environment:
+      DATABASE_URL: postgresql://portal:portal@postgres:5432/portal?schema=public
+      JWT_SECRET: local-compose-secret
+      PORT: 4000
+    ports: ["4000:4000"]
+    depends_on: [postgres]
+  web:
+    build: { context: ., dockerfile: infra/docker/web.Dockerfile }
+    ports: ["8080:80"]
+    depends_on: [api]
+volumes:
+  postgres-data:

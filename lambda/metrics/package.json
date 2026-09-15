@@ -1,0 +1,9 @@
+{
+  "name": "@portal/metrics-lambda",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": { "build": "tsc" },
+  "dependencies": { "@types/aws-lambda": "^8.10.145", "pg": "^8.13.1", "typescript": "^5.7.2" },
+  "devDependencies": { "@types/pg": "^8.11.10" }
+}
