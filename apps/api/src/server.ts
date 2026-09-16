@@ -31,7 +31,9 @@ app.post('/api/auth/login', async (req, res) => {
   const parsed = z.object({ email: z.string().email(), password: z.string().min(1) }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Datos de acceso inválidos' });
   const user = await prisma.user.findUnique({ where: { email: parsed.data.email.toLowerCase() } });
-  if (!user || !user.active || !(await bcrypt.compare(parsed.data.password, user.password))) return res.status(401).json({ error: 'Correo o contraseña incorrectos' });
+  if (!user) return res.status(401).json({ error: 'Correo o contraseña incorrectos' });
+  if (!user.active) return res.status(401).json({ error: 'Usuario inactivo' });
+  if (!(await bcrypt.compare(parsed.data.password, user.password))) return res.status(401).json({ error: 'Correo o contraseña incorrectos' });
   const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: '8h' });
   res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role, active: user.active } });
 });

@@ -1,5 +1,5 @@
 # Portal de equipo con Notas (Prueba técnica)
-## Presentada por Laura Murillas 
+### Presentada por Laura Murillas 
 ### Contacto: lauramurillas0000@gmail.com 
 
 Aplicación local para que un equipo consulte su actividad, organice notas en un lienzo compartido, con autenticación, roles, persistencia, métricas y una Lambda preparada para AWS.
@@ -53,7 +53,14 @@ npm run dev
 
 La API queda en `http://localhost:4000` y el frontend en `http://localhost:5173`.
 
-Cuentas DEMO: `admin@equipo.local` / `Admin123!`; `maria@equipo.local` / `User123!`.
+## Cuentas DEMO: 
+Administrador:
+- correo: `admin@equipo.local` 
+- password: `Admin123!`
+
+Usuario:
+- correo: `maria@equipo.local` 
+- password: `User123!`
 
 ## Pruebas
 
@@ -82,7 +89,7 @@ Y elimine únicamente los archivos regenerables de Prisma:
 Remove-Item ".\node_modules\.prisma" -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item ".\node_modules\@prisma\client" -Recurse -Force -ErrorAction SilentlyContinue
 ```
-Despues de esto vuelva a regenerar el cliente ejecutando desde el comienzo con `npm install`
+Despues de esto vuelva a regenerar el cliente ejecutando desde el comienzo con `npm install` y los demás comandos de ejecución.
 
 ## Despliegue
 
@@ -90,7 +97,7 @@ PostgreSQL se ejecuta localmente en Docker con el volumen `postgres-data`; no re
 
 ### Despliegue AWS
 
-Requisitos adicionales: AWS CLI configurado, SAM CLI, una imagen de la API publicada en ECR (o un registro accesible por EC2), una AMI de Amazon Linux, una subred y un security group. Crea previamente los parámetros SSM `DATABASE_URL_PARAMETER` y `JWT_SECRET_PARAMETER` como valores `SecureString`. EC2 y CloudFront son recursos AWS y no se emulan en local; la demostración local usa Docker Compose.
+ AWS CLI configurado, SAM CLI, una imagen de la API publicada en ECR (o un registro accesible por EC2), una AMI de Amazon Linux, una subred y un security group. Crea previamente los parámetros SSM `DATABASE_URL_PARAMETER` y `JWT_SECRET_PARAMETER` como valores `SecureString`. EC2 y CloudFront son recursos AWS y no se emulan en local; la demostración local usa Docker Compose.
 
 Las plantillas son `infra/sam/template.yaml` (métricas), `infra/cloudformation/api-ec2.yaml` (API en Docker) e `infra/cloudformation/frontend.yaml` (bucket S3 privado y CloudFront con OAC). Configura los valores operativos sin escribir secretos en los scripts:
 
@@ -111,13 +118,13 @@ En Linux/macOS, exporta las mismas variables y ejecuta `./scripts/deploy.sh` o `
 
 ## Variables y datos demo
 
-`DATABASE_URL=postgresql://portal:portal@localhost:5432/portal?schema=public` y `JWT_SECRET` son las variables mínimas para ejecutar la API fuera de Compose. El seed crea `admin@equipo.local / Admin123!` y `maria@equipo.local / User123!`. El administrador puede crear usuarios, activar/desactivar miembros y nunca puede dejar el sistema sin un administrador activo.
+`DATABASE_URL=postgresql://portal:portal@localhost:5432/portal?schema=public` y `JWT_SECRET` son las variables mínimas para ejecutar la API fuera de Compose. El seed crea `admin@equipo.local / Admin123!` y `maria@equipo.local / User123!`.
 
 ## Estructura del proyecto
 ```
 Portal de equipo con Notas/
-├── .env                    # Variables locales, no se sube a Git
-├── .env.example            # Plantilla de variables de entorno
+├── .env                    
+├── .env.example            
 ├── .gitignore
 ├── docker-compose.yml      # PostgreSQL, API y frontend
 ├── package.json            # Scripts y workspaces del monorepo
