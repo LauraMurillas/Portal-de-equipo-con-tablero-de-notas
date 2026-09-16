@@ -1,6 +1,6 @@
 # Portal de equipo con Notas (Prueba técnica)
 ### Presentada por Laura Murillas 
-### Contacto: lauramurillas0000@gmail.com 
+ Contacto: lauramurillas0000@gmail.com 
 
 Aplicación local para que un equipo consulte su actividad, organice notas en un lienzo compartido, con autenticación, roles, persistencia, métricas y una Lambda preparada para AWS.
 
@@ -13,12 +13,7 @@ Existen dos roles:
 | Administrador | Puede utilizar el tablero y el dashboard, además de administrar usuarios. Tiene permitido listar, crear y editar usuarios, asignar su rol y desactivarlos o reactivarlos |
 | Usuario | Puede utilizar el tablero y el dashboard. |
 
-
 Cada usuario tiene nombre, correo electrónico, rol y estado activo o inactivo. 
-
-## Restricciones 
-Los usuarios inactivos no pueden acceder ni continuar utilizando el área autenticada. Debe conservarse siempre al menos un administrador activo.
-
 
 ## Stack
 
@@ -27,6 +22,10 @@ Los usuarios inactivos no pueden acceder ni continuar utilizando el área autent
 - `database/prisma`: PostgreSQL local, con esquema relacional y seed reproducible.
 - `lambda/metrics`: handler AWS Lambda que calcula métricas consultando PostgreSQL.
 - `infra`: Docker Compose, Dockerfiles, plantilla SAM de métricas y plantillas CloudFormation para EC2 y S3/CloudFront.
+
+## Restricciones 
+Los usuarios inactivos no pueden acceder ni continuar utilizando el área autenticada. Debe conservarse siempre al menos un administrador activo.
+
 
 ## Requisitos
 
@@ -53,7 +52,8 @@ npm run dev
 
 La API queda en `http://localhost:4000` y el frontend en `http://localhost:5173`.
 
-## Cuentas DEMO: 
+## Cuentas DEMO y variables: 
+
 Administrador:
 - correo: `admin@equipo.local` 
 - password: `Admin123!`
@@ -61,6 +61,9 @@ Administrador:
 Usuario:
 - correo: `maria@equipo.local` 
 - password: `User123!`
+
+Las variables mínimas para ejecutar la API fuera de Compose son `DATABASE_URL=postgresql://portal:portal@localhost:5432/portal?schema=public` y `JWT_SECRET`
+ - Nota: `JWT_SECRET` debe ser un secreto de entorno real en producción.
 
 ## Pruebas
 
@@ -71,7 +74,7 @@ npm test
 
 La Lambda puede compilarse con `npm run build -w lambda/metrics`. Requiere `DATABASE_URL` y consulta la tabla `Note` de PostgreSQL. Para probarla con SAM, compila el paquete y ejecuta `sam local start-api -t infra/sam/template.yaml --parameter-overrides DatabaseUrl=$env:DATABASE_URL`.
 
-### NOTA IMPORTANTE
+### Nota importante
 Si anteriormente ha trabajo con Prisma, puede que obtenga un error al ejecutar la linea: 
 ```
 npm run db:push
@@ -91,34 +94,76 @@ Remove-Item ".\node_modules\@prisma\client" -Recurse -Force -ErrorAction Silentl
 ```
 Despues de esto vuelva a regenerar el cliente ejecutando desde el comienzo con `npm install` y los demás comandos de ejecución.
 
+## Restricciones
+
+* Los usuarios desactivados no pueden iniciar sesión
+* Siempre debe de existir al menos 1 administrador activo 
+
 ## Despliegue
 
-PostgreSQL se ejecuta localmente en Docker con el volumen `postgres-data`; no requiere cuenta AWS ni servicios de pago. La API protege notas, tablero, métricas y administración con JWT; las notas son compartidas y conservan `status`, `x` e `y`. En AWS, sustituye `DATABASE_URL` por PostgreSQL gestionado y despliega la API en un contenedor sobre EC2, el frontend estático en S3/CloudFront y `lambda/metrics` mediante SAM. `JWT_SECRET` debe ser un secreto de entorno real en producción.
+ El despliegue publica primero la Lambda con SAM, crea EC2 y S3/CloudFront, compila el frontend, sincroniza `apps/web/dist` al bucket privado e invalida la distribución. La eliminación vacía el bucket antes de borrar los stacks. Los scripts esperan que las credenciales AWS estén configuradas mediante el mecanismo estándar de AWS CLI.
+    Nota: En Linux/macOS, exporta las mismas variables y ejecuta `./scripts/deploy.sh` o `./scripts/destroy.sh`.
 
-### Despliegue AWS
+PostgreSQL se ejecuta localmente en Docker con el volumen `postgres-data`; no requiere cuenta AWS ni servicios de pago. La API protege notas, tablero, métricas y administración con JWT; las notas son compartidas y conservan `status`, `x` e `y`. En AWS, sustituyo `DATABASE_URL` por PostgreSQL gestionado y despliego la API en un contenedor sobre EC2, el frontend estático en S3/CloudFront y `lambda/metrics` mediante SAM.   
 
- AWS CLI configurado, SAM CLI, una imagen de la API publicada en ECR (o un registro accesible por EC2), una AMI de Amazon Linux, una subred y un security group. Crea previamente los parámetros SSM `DATABASE_URL_PARAMETER` y `JWT_SECRET_PARAMETER` como valores `SecureString`. EC2 y CloudFront son recursos AWS y no se emulan en local; la demostración local usa Docker Compose.
-
-Las plantillas son `infra/sam/template.yaml` (métricas), `infra/cloudformation/api-ec2.yaml` (API en Docker) e `infra/cloudformation/frontend.yaml` (bucket S3 privado y CloudFront con OAC). Configura los valores operativos sin escribir secretos en los scripts:
-
-```powershell
-$env:AWS_REGION = 'eu-west-1'
-$env:API_IMAGE_URI = '123456789012.dkr.ecr.eu-west-1.amazonaws.com/portal-api:latest'
-$env:ECR_REGISTRY_URI = '123456789012.dkr.ecr.eu-west-1.amazonaws.com'
-$env:AMI_ID = 'ami-xxxxxxxxxxxxxxxxx'
-$env:SUBNET_ID = 'subnet-xxxxxxxxxxxxxxxxx'
-$env:SECURITY_GROUP_ID = 'sg-xxxxxxxxxxxxxxxxx'
-$env:DATABASE_URL_PARAMETER = '/portal/DATABASE_URL'
-$env:JWT_SECRET_PARAMETER = '/portal/JWT_SECRET'
-./scripts/deploy.ps1
-./scripts/destroy.ps1
+Antes de ejecutarlo debes configurar las variables: 
+```
+$env:AWS_REGION = "us-east-1"
+$env:API_IMAGE_URI = "123456789012.dkr.ecr.us-east-1.amazonaws.com/portal-api:latest"
+$env:ECR_REGISTRY_URI = "123456789012.dkr.ecr.us-east-1.amazonaws.com"
+$env:AMI_ID = "ami-xxxxxxxxxxxxxxxxx"
+$env:SUBNET_ID = "subnet-xxxxxxxxxxxxxxxxx"
+$env:SECURITY_GROUP_ID = "sg-xxxxxxxxxxxxxxxxx"
+$env:DATABASE_URL_PARAMETER = "/portal/DATABASE_URL"
+$env:JWT_SECRET_PARAMETER = "/portal/JWT_SECRET"
 ```
 
-En Linux/macOS, exporta las mismas variables y ejecuta `./scripts/deploy.sh` o `./scripts/destroy.sh`. El despliegue publica primero la Lambda con SAM, crea EC2 y S3/CloudFront, compila el frontend, sincroniza `apps/web/dist` al bucket privado e invalida la distribución. La eliminación vacía el bucket antes de borrar los stacks. Los scripts esperan que las credenciales AWS estén configuradas mediante el mecanismo estándar de AWS CLI.
+## Arquitectura AWS 
 
-## Variables y datos demo
+ El proyecto cumple con: AWS CLI configurado, SAM CLI, una imagen de la API publicada en ECR (o un registro accesible por EC2), una AMI de Amazon Linux, una subred y un security group. Crea previamente los parámetros SSM `DATABASE_URL_PARAMETER` y `JWT_SECRET_PARAMETER` como valores `SecureString`. EC2 y CloudFront son recursos AWS y no se emulan en local; la ejecución local usa Docker Compose.
 
-`DATABASE_URL=postgresql://portal:portal@localhost:5432/portal?schema=public` y `JWT_SECRET` son las variables mínimas para ejecutar la API fuera de Compose. El seed crea `admin@equipo.local / Admin123!` y `maria@equipo.local / User123!`.
+AWS SAM se utiliza para definir y desplegar recursos serverless, principalmente:
+- Lambda.
+- API Gateway.
+- Permisos asociados.
+
+SAM utiliza Docker para simular la ejecución de Lambda en tu equipo. Por eso se necesita Docker Desktop, AWS SAM CLI, la Lambda compilada, y PostgreSQL ejecutándose.
+
+Las plantillas son `infra/sam/template.yaml` (métricas), `infra/cloudformation/api-ec2.yaml` (API en Docker) e `infra/cloudformation/frontend.yaml` (bucket S3 privado y CloudFront con OAC).
+
+La plantilla también crea automáticamente un endpoint API Gateway, por lo tanto el flujo es:
+```
+GET /metrics
+    |
+    v
+API Gateway
+    |
+    v
+Lambda handler
+    |
+    v
+PostgreSQL
+```
+Esto significa que la conexión de PostgreSQL no se escribe directamente en la plantilla. Se lee desde AWS Systems Manager Parameter Store. 
+
+En este proyecto hay dos plantillas CloudFormation adicionales:
+* API en EC2
+* Seguridad de EC2: El rol IAM de EC2 lee desde SSM PArameter Store
+
+En este proyecto utilizo Frontend en S3 y CloudFront:
+- La plantilla que crea un bucket S3 privado. El bucket no se expone públicamente. Los usuarios acceden al frontend a través de CloudFront
+- CloudFront también está configurado para redirigir HTTP a HTTPS, servir index.html, resolver rutas de React, aplicar caché y compresión.
+
+
+En resumen, cada servicio tiene una responsabilidad diferente:
+- S3 almacena los archivos estáticos del frontend.
+- CloudFront distribuye el frontend por HTTPS y CDN.
+- EC2 ejecuta la API Express dentro de Docker.
+- Lambda calcula las métricas del dashboard.
+- API Gateway expone la Lambda mediante HTTP.
+- PostgreSQL almacena usuarios y notas.
+
+
 
 ## Estructura del proyecto
 ```
@@ -197,4 +242,25 @@ Portal de equipo con Notas/
     -S3 y CloudFront para el frontend.
 - En la carpeta `scripts` se encuentran los comandos automatizados de despliegue y eliminación de recursos AWS.
 
+## Futuras mejoras propuestas
+
+Actualmente la API Express sí utiliza JWT para sus rutas protegidas.
+La Lambda actual calcula métricas directamente y no valida JWT dentro de su handler. Por tanto, si expongo públicamente el endpoint `/metrics`, convendría añadir una de estas protecciones:
+
+- Validación JWT dentro de la Lambda.
+- Lambda Authorizer en API Gateway.
+- Restricción mediante API Gateway y frontend autenticado.
+- Hacer que la API Express invoque internamente la Lambda.
+
+Para una prueba ténica (como es el caso), la arquitectura actual demuestra correctamente el uso de Lambda para métricas, pero para producción sería recomendable proteger también el endpoint de API Gateway.
+
+
+## Capturas
+![Inicio](/assets/images/login.png)
+![Inicio](/assets/images/tablero.png)
+![Inicio](/assets/images/actividad.png)
+![Inicio](/assets/images/gestion.png)
+
+### Tiempo empleado
+Desarrollé esta prueba técnica en 14 horas (dividos en 2 días - 7h cada uno), incluidos el desarrollo, pruebas, despliegue, documentación y grabación DEMO.
 

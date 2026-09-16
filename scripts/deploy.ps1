@@ -1,3 +1,5 @@
+#script principal de despliegue de la infraestructura y la aplicación
+
 [CmdletBinding()]
 param(
   [string]$Region = $env:AWS_REGION,

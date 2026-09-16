@@ -1,3 +1,8 @@
+/*
+Funcion AWS LAMBDA para obtener métricas de la base de datos PostgreSQL. 
+Devuelve el total de notas y el conteo por estado (BACKLOG, IN_PROGRESS, DONE).
+*/
+
 import type { APIGatewayProxyHandler } from 'aws-lambda';
 import { Pool } from 'pg';
 
